@@ -74,15 +74,18 @@ CycleGAN course assignment [code](http://www.cs.toronto.edu/~rgrosse/courses/csc
 
 ## Getting Started
 ### Installation
-- Install PyTorch 0.4+ and torchvision from http://pytorch.org and other dependencies (e.g., [visdom](https://github.com/facebookresearch/visdom) and [dominate](https://github.com/Knio/dominate)). You can install all the dependencies by
-```bash
-pip install -r requirements.txt
-```
+
 - Clone this repo:
 ```bash
 git clone https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix
 cd pytorch-CycleGAN-and-pix2pix
 ```
+
+- Install PyTorch 0.4+ and torchvision from http://pytorch.org and other dependencies (e.g., [visdom](https://github.com/facebookresearch/visdom) and [dominate](https://github.com/Knio/dominate)). You can install all the dependencies by
+```bash
+pip install -r requirements.txt
+```
+
 - For Conda users, we include a script `./scripts/conda_deps.sh` to install PyTorch and other libraries.
 
 ### CycleGAN train/test
@@ -111,13 +114,13 @@ bash ./datasets/download_pix2pix_dataset.sh facades
 - Train a model:
 ```bash
 #!./scripts/train_pix2pix.sh
-python train.py --dataroot ./datasets/facades --name facades_pix2pix --model pix2pix --which_direction BtoA
+python train.py --dataroot ./datasets/facades --name facades_pix2pix --model pix2pix --direction BtoA
 ```
 - To view training results and loss plots, run `python -m visdom.server` and click the URL http://localhost:8097. To see more intermediate results, check out  `./checkpoints/facades_pix2pix/web/index.html`
 - Test the model (`bash ./scripts/test_pix2pix.sh`):
 ```bash
 #!./scripts/test_pix2pix.sh
-python test.py --dataroot ./datasets/facades --name facades_pix2pix --model pix2pix --which_direction BtoA
+python test.py --dataroot ./datasets/facades --name facades_pix2pix --model pix2pix --direction BtoA
 ```
 The test results will be saved to a html file here: `./results/facades_pix2pix/test_latest/index.html`.
 
@@ -161,9 +164,9 @@ bash ./datasets/download_pix2pix_dataset.sh facades
 ```
 - Then generate the results using
 ```bash
-python test.py --dataroot ./datasets/facades/ --which_direction BtoA --model pix2pix --name facades_label2photo_pretrained
+python test.py --dataroot ./datasets/facades/ --direction BtoA --model pix2pix --name facades_label2photo_pretrained
 ```
-Note that we specified `--which_direction BtoA` as Facades dataset's A to B direction is photos to labels.
+Note that we specified `--direction BtoA` as Facades dataset's A to B direction is photos to labels.
 
 - See a list of currently available models at `./scripts/download_pix2pix_model.sh`
 

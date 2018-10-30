@@ -2,7 +2,8 @@
 Before you post a new question, please first look at the following Q & A and existing GitHub issues. You may also want to read [Training/Test tips](docs/tips.md) for more suggestions.
 
 #### Connection Error:HTTPConnectionPool ([#230](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/issues/230), [#24](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/issues/24), [#38](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/issues/38))
-Similar error messages:  “Failed to establish a new connection/Connection refused”.  
+Similar error messages include “Failed to establish a new connection/Connection refused”.
+
 Please start the visdom server before starting the training:
 ```bash
 python -m visdom.server
@@ -15,17 +16,24 @@ You can also disable the visdom by setting `--display_id 0`.
 
 #### My PyTorch errors on CUDA related code.
 Try to run the following code snippet to make sure that CUDA is working (assuming using PyTorch >= 0.4):
-```py
+```python
 import torch
 torch.cuda.init()
 print(torch.randn(1, device='cuda')
 ```
-If you met an error, it is likely that your PyTorch build doesn't work with CUDA, e.g., it is installl from the official MacOS binary, or you have a GPU that is too old and not supported anymore. You may run the the code with CPU using `--device_ids -1`.
 
-####  “TypeError: Object of type 'Tensor' is not JSON serializable” ([#258](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/issues/258))
+If you met an error, it is likely that your PyTorch build does not work with CUDA, e.g., it is installl from the official MacOS binary, or you have a GPU that is too old and not supported anymore. You may run the the code with CPU using `--device_ids -1`.
+
+#### TypeError: Object of type 'Tensor' is not JSON serializable ([#258](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/issues/258))
 Similar errors: AttributeError: module 'torch' has no attribute 'device' ([#314](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/issues/314))
 
 The current code only works with PyTorch 0.4+. An earlier PyTorch version can often cause the above errors.
+
+#### ValueError: empty range for randrange() ([#390](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/issues/390), [#376](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/issues/376), [#194](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/issues/194))
+Similar error messages include "ConnectionRefusedError: [Errno 111] Connection refused"
+
+It is related to data augmentation step. It often happens when you use `--resize_or_crop crop`. The program will crop random `fineSize x fineSize` patches out of the input training images. But if some of your image sizes (e.g., `256x384`) are smaller than the `fineSize` (e.g., 512), you will get this error. A simple fix will be to use other data augmentation methods such as `--resize_and_crop` or `scale_width_and_crop`.  Our program will automatically resize the images according to `loadSize` before apply `fineSize x fineSize` cropping. Make sure that `loadSize >= fineSize`.
+
 
 #### Can I continue/resume my training? ([#350](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/issues/350), [#275](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/issues/275), [#234](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/issues/234), [#87](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/issues/87))
 You can use the option `--continue_train`. Also set `--epoch_count` to specify a different starting epoch count. See more discussion in [training/test tips](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/blob/master/docs/tips.md#trainingtest-tips.
@@ -59,8 +67,10 @@ CycleGAN is more memory-intensive than pix2pix as it requires two generators and
 
 - During training, train CycleGAN on cropped images of the training set. Please be careful not to change the aspect ratio or the scale of the original image, as this can lead to the training/test gap. You can usually do this by using `--resize_or_crop crop` option, or `--resize_or_crop scale_width_and_crop`.
 
-- Then at test time, you can load only one generator to produce the results in a single direction. This greatly saves GPU memory as you are not loading the discriminators and the other generator in the opposite direction. You can probably take the whole image as input (we have done image generation of 1024x512 resolution). You can do this using `--model test --dataroot [path to the directory that contains your test images (e.g., ./datasets/horse2zebra/trainA)] --model_suffix _A`. For more explanation, please see https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/blob/master/models/test_model.py#L16.
+- Then at test time, you can load only one generator to produce the results in a single direction. This greatly saves GPU memory as you are not loading the discriminators and the other generator in the opposite direction. You can probably take the whole image as input. You can do this using `--model test --dataroot [path to the directory that contains your test images (e.g., ./datasets/horse2zebra/trainA)] --model_suffix _A --resize_or_crop none`. You can use either `--resize_or_crop none` or `--resize_or_crop scale_width --fineSize [your_desired_image_width]`. Please see the [model_suffix](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/blob/master/models/test_model.py#L16) and [resize_or_crop](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/blob/master/data/base_dataset.py#L24) for more details.
 
+#### What is the identity loss? ([#322](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/issues/322), [#373](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/issues/373), [#362](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/pull/362))
+We use the identity loss for our photo to painting application. The identity loss can regularize the generator to be close to an identity mapping when fed with real samples from the *target* domain. If something already looks like from the target domain, you should preserve the image without making additional changes. The generator trained with this loss will often be more conservative for unknown content. Please see more details in Sec 5.2 ''Photo generation from paintings'' and  Figure 12 in the CycleGAN [paper](https://arxiv.org/pdf/1703.10593.pdf). The loss was first proposed in the Equation 6 of the prior work [[Taigman et al., 2017]](https://arxiv.org/pdf/1611.02200.pdf).
 
 #### The color gets inverted from the beginning of training ([#249](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/issues/249))
 The authors also observe that the generator unnecessarily inverts the color of the input image early in training, and then never learns to undo the inversion. In this case, you can try two things.
@@ -92,3 +102,6 @@ Please check out the following papers that show ways of getting z to actually ha
 
 #### Experiment details (e.g., BW->color) ([#306](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/issues/306))
 You can find more training details and hyperparameter settings in the appendix of [CycleGAN](https://arxiv.org/abs/1703.10593) and [pix2pix](https://arxiv.org/abs/1611.07004) papers.
+
+#### Results with [Cycada](https://arxiv.org/pdf/1711.03213.pdf)
+We generated the [result of translating GTA images to Cityscapes-style images](https://junyanz.github.io/CycleGAN/) using our Torch repo. Our PyTorch and Torch implementation seemed to produce a little bit different results, although we have not measured the FCN score using the pytorch-trained model. To reproduce the result of Cycada, please use the Torch repo for now. 
