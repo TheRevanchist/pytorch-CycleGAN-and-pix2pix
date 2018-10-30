@@ -12,9 +12,9 @@ class BaseOptions():
 
     def initialize(self, parser):
         parser.add_argument('--dataroot', required=True, help='path to images (should have subfolders trainA, trainB, valA, valB, etc)')
-        parser.add_argument('--batch_size', type=int, default=1, help='input batch size')
-        parser.add_argument('--loadSize', type=int, default=286, help='scale images to this size')
-        parser.add_argument('--fineSize', type=int, default=256, help='then crop to this size')
+        parser.add_argument('--batch_size', type=int, default=8, help='input batch size')
+        parser.add_argument('--loadSize', type=int, default=800, help='scale images to this size')
+        parser.add_argument('--fineSize', type=int, default=712, help='then crop to this size')
         parser.add_argument('--input_nc', type=int, default=3, help='# of input image channels')
         parser.add_argument('--output_nc', type=int, default=3, help='# of output image channels')
         parser.add_argument('--ngf', type=int, default=64, help='# of gen filters in first conv layer')
@@ -22,7 +22,7 @@ class BaseOptions():
         parser.add_argument('--netD', type=str, default='basic', help='selects model to use for netD')
         parser.add_argument('--netG', type=str, default='resnet_9blocks', help='selects model to use for netG')
         parser.add_argument('--n_layers_D', type=int, default=3, help='only used if netD==n_layers')
-        parser.add_argument('--gpu_ids', type=str, default='0', help='gpu ids: e.g. 0  0,1,2, 0,2. use -1 for CPU')
+        parser.add_argument('--gpu_ids', type=str, default='0, 1, 2, 3, 4, 5, 6, 7', help='gpu ids: e.g. 0  0,1,2, 0,2. use -1 for CPU')
         parser.add_argument('--name', type=str, default='experiment_name', help='name of the experiment. It decides where to store samples and models')
         parser.add_argument('--dataset_mode', type=str, default='unaligned', help='chooses how datasets are loaded. [unaligned | aligned | single]')
         parser.add_argument('--model', type=str, default='cycle_gan',
