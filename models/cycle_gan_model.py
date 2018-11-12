@@ -3,6 +3,7 @@ import itertools
 from util.image_pool import ImagePool
 from .base_model import BaseModel
 from . import networks
+from apex.fp16_utils import FP16_Optimizer
 
 
 class CycleGANModel(BaseModel):
@@ -44,16 +45,15 @@ class CycleGANModel(BaseModel):
         # The naming conversion is different from those used in the paper
         # Code (paper): G_A (G), G_B (F), D_A (D_Y), D_B (D_X)
         self.netG_A = networks.define_G(opt.input_nc, opt.output_nc, opt.ngf, opt.netG, opt.norm,
-                                        not opt.no_dropout, opt.init_type, opt.init_gain, self.gpu_ids)
+                                        not opt.no_dropout, opt.init_type, opt.init_gain, self.gpu_ids).half()
         self.netG_B = networks.define_G(opt.output_nc, opt.input_nc, opt.ngf, opt.netG, opt.norm,
-                                        not opt.no_dropout, opt.init_type, opt.init_gain, self.gpu_ids)
-
+                                        not opt.no_dropout, opt.init_type, opt.init_gain, self.gpu_ids).half()
         if self.isTrain:
             use_sigmoid = opt.no_lsgan
             self.netD_A = networks.define_D(opt.output_nc, opt.ndf, opt.netD,
-                                            opt.n_layers_D, opt.norm, use_sigmoid, opt.init_type, opt.init_gain, self.gpu_ids)
+                                            opt.n_layers_D, opt.norm, use_sigmoid, opt.init_type, opt.init_gain, self.gpu_ids).half()
             self.netD_B = networks.define_D(opt.input_nc, opt.ndf, opt.netD,
-                                            opt.n_layers_D, opt.norm, use_sigmoid, opt.init_type, opt.init_gain, self.gpu_ids)
+                                            opt.n_layers_D, opt.norm, use_sigmoid, opt.init_type, opt.init_gain, self.gpu_ids).half()
 
         if self.isTrain:
             self.fake_A_pool = ImagePool(opt.pool_size)
@@ -65,16 +65,18 @@ class CycleGANModel(BaseModel):
             # initialize optimizers
             self.optimizer_G = torch.optim.Adam(itertools.chain(self.netG_A.parameters(), self.netG_B.parameters()),
                                                 lr=opt.lr, betas=(opt.beta1, 0.999))
+            self.optimizer_G = FP16_Optimizer(self.optimizer_G, dynamic_loss_scale=True)
             self.optimizer_D = torch.optim.Adam(itertools.chain(self.netD_A.parameters(), self.netD_B.parameters()),
                                                 lr=opt.lr, betas=(opt.beta1, 0.999))
+            self.optimizer_D = FP16_Optimizer(self.optimizer_D, dynamic_loss_scale=True)
             self.optimizers = []
             self.optimizers.append(self.optimizer_G)
             self.optimizers.append(self.optimizer_D)
 
     def set_input(self, input):
         AtoB = self.opt.direction == 'AtoB'
-        self.real_A = input['A' if AtoB else 'B'].to(self.device)
-        self.real_B = input['B' if AtoB else 'A'].to(self.device)
+        self.real_A = input['A' if AtoB else 'B'].to(self.device).half()
+        self.real_B = input['B' if AtoB else 'A'].to(self.device).half()
         self.image_paths = input['A_paths' if AtoB else 'B_paths']
 
     def forward(self):
@@ -94,7 +96,7 @@ class CycleGANModel(BaseModel):
         # Combined loss
         loss_D = (loss_D_real + loss_D_fake) * 0.5
         # backward
-        loss_D.backward()
+        self.optimizer_D.backward(loss_D)
         return loss_D
 
     def backward_D_A(self):
@@ -131,7 +133,7 @@ class CycleGANModel(BaseModel):
         self.loss_cycle_B = self.criterionCycle(self.rec_B, self.real_B) * lambda_B
         # combined loss
         self.loss_G = self.loss_G_A + self.loss_G_B + self.loss_cycle_A + self.loss_cycle_B + self.loss_idt_A + self.loss_idt_B
-        self.loss_G.backward()
+        self.optimizer_G.backward(self.loss_G)
 
     def optimize_parameters(self):
         # forward
