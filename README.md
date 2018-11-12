@@ -4,6 +4,22 @@
 
 # CycleGAN and pix2pix in PyTorch
 
+This code is copied from https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix
+
+The main difference is that the original code doesn't work well with datasets containing big (high resolution) images, and even a GPU Volta will run out of memory. At the moment, you cannot train on images which are bigger than 700 x 700 in a GPU Volta with 32GB (typical GPU for DGX-1). On inference stage (generation) the code already allows generating arbitrarily big images, but if the model is trained on small images, the generated large images are not high quality. The goal is to change the code until we are able to train on images of size 2000 x 2000.
+
+In order to deal with this, we are going to implement the following techniques:
+
+1) implement half precision weights - it needs NVIDIA apex library (update 12/11/2018, code completed, testing it)
+2) implement gradient checkpointing
+3) implement model parallelism
+
+The same license applies as in the original code.
+
+########################################################################
+########################################################################
+########################################################################
+
 We provide PyTorch implementations for both unpaired and paired image-to-image translation.
 
 The code was written by [Jun-Yan Zhu](https://github.com/junyanz) and [Taesung Park](https://github.com/taesung89), and supported by [Tongzhou Wang](https://ssnl.github.io/).
