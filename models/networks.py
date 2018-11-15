@@ -4,7 +4,6 @@ from torch.nn import init
 import functools
 from torch.optim import lr_scheduler
 from models.scheduler import LambdaLR
-from torch.utils.checkpoint import checkpoint
 ###############################################################################
 # Helper Functions
 ###############################################################################
@@ -115,10 +114,11 @@ def define_D(input_nc, ndf, netD,
 # but it abstracts away the need to create the target label tensor
 # that has the same size as the input
 class GANLoss(nn.Module):
-    def __init__(self, use_lsgan=True, target_real_label=1.0, target_fake_label=0.0):
+    def __init__(self, use_lsgan=True, target_real_label=1.0, target_fake_label=0.0, half_precision=False):
         super(GANLoss, self).__init__()
         self.register_buffer('real_label', torch.tensor(target_real_label))
         self.register_buffer('fake_label', torch.tensor(target_fake_label))
+        self.half_precision = half_precision
         if use_lsgan:
             self.loss = nn.MSELoss()
         else:
@@ -126,9 +126,15 @@ class GANLoss(nn.Module):
 
     def get_target_tensor(self, input, target_is_real):
         if target_is_real:
-            target_tensor = self.real_label.half()
+            if not self.half_precision:
+                target_tensor = self.real_label
+            else:
+                target_tensor = self.real_label.half()
         else:
-            target_tensor = self.fake_label.half()
+            if not self.half_precision:
+                target_tensor = self.fake_label
+            else:
+                target_tensor = self.fake_label.half()
         return target_tensor.expand_as(input)
 
     def __call__(self, input, target_is_real):
@@ -185,7 +191,6 @@ class ResnetGenerator(nn.Module):
         self.model = nn.Sequential(*model)
 
     def forward(self, input):
-        #return checkpoint(self.model, input)
         return self.model(input)
 
 

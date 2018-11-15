@@ -3,7 +3,6 @@ import itertools
 from util.image_pool import ImagePool
 from .base_model import BaseModel
 from . import networks
-from apex.fp16_utils import FP16_Optimizer
 from torch.utils.checkpoint import checkpoint
 
 
@@ -25,6 +24,11 @@ class CycleGANModel(BaseModel):
 
     def initialize(self, opt):
         BaseModel.initialize(self, opt)
+        if opt.half:
+            try:
+                from apex.fp16_utils import FP16_Optimizer
+            except ImportError:
+                print("Please install NVIDIA Apex for safe mixed precision")
 
         # specify the training losses you want to print out. The program will call base_model.get_current_losses
         self.loss_names = ['D_A', 'G_A', 'cycle_A', 'idt_A', 'D_B', 'G_B', 'cycle_B', 'idt_B']
@@ -46,38 +50,49 @@ class CycleGANModel(BaseModel):
         # The naming conversion is different from those used in the paper
         # Code (paper): G_A (G), G_B (F), D_A (D_Y), D_B (D_X)
         self.netG_A = networks.define_G(opt.input_nc, opt.output_nc, opt.ngf, opt.netG, opt.norm,
-                                        not opt.no_dropout, opt.init_type, opt.init_gain, self.gpu_ids).half()
+                                        not opt.no_dropout, opt.init_type, opt.init_gain, self.gpu_ids)
         self.netG_B = networks.define_G(opt.output_nc, opt.input_nc, opt.ngf, opt.netG, opt.norm,
-                                        not opt.no_dropout, opt.init_type, opt.init_gain, self.gpu_ids).half()
+                                        not opt.no_dropout, opt.init_type, opt.init_gain, self.gpu_ids)
+
+        if opt.half:
+            self.netG_A = self.netG_A.half()
+            self.netG_B = self.netG_B.half()
+
         if self.isTrain:
             use_sigmoid = opt.no_lsgan
             self.netD_A = networks.define_D(opt.output_nc, opt.ndf, opt.netD,
-                                            opt.n_layers_D, opt.norm, use_sigmoid, opt.init_type, opt.init_gain, self.gpu_ids).half()
+                                            opt.n_layers_D, opt.norm, use_sigmoid, opt.init_type, opt.init_gain, self.gpu_ids)
             self.netD_B = networks.define_D(opt.input_nc, opt.ndf, opt.netD,
-                                            opt.n_layers_D, opt.norm, use_sigmoid, opt.init_type, opt.init_gain, self.gpu_ids).half()
+                                            opt.n_layers_D, opt.norm, use_sigmoid, opt.init_type, opt.init_gain, self.gpu_ids)
 
-        if self.isTrain:
             self.fake_A_pool = ImagePool(opt.pool_size)
             self.fake_B_pool = ImagePool(opt.pool_size)
             # define loss functions
-            self.criterionGAN = networks.GANLoss(use_lsgan=not opt.no_lsgan).to(self.device)
+            self.criterionGAN = networks.GANLoss(use_lsgan=not opt.no_lsgan, half_precision=opt.half).to(self.device)
             self.criterionCycle = torch.nn.L1Loss()
             self.criterionIdt = torch.nn.L1Loss()
             # initialize optimizers
             self.optimizer_G = torch.optim.Adam(itertools.chain(self.netG_A.parameters(), self.netG_B.parameters()),
                                                 lr=opt.lr, betas=(opt.beta1, 0.999))
-            self.optimizer_G = FP16_Optimizer(self.optimizer_G, dynamic_loss_scale=True)
             self.optimizer_D = torch.optim.Adam(itertools.chain(self.netD_A.parameters(), self.netD_B.parameters()),
                                                 lr=opt.lr, betas=(opt.beta1, 0.999))
-            self.optimizer_D = FP16_Optimizer(self.optimizer_D, dynamic_loss_scale=True)
+            if opt.half:
+                self.netD_A = self.netD_A.half()
+                self.netD_B = self.netD_B.half()
+                self.optimizer_G = FP16_Optimizer(self.optimizer_G, dynamic_loss_scale=True)
+                self.optimizer_D = FP16_Optimizer(self.optimizer_D, dynamic_loss_scale=True)
+
             self.optimizers = []
             self.optimizers.append(self.optimizer_G)
             self.optimizers.append(self.optimizer_D)
 
     def set_input(self, input):
         AtoB = self.opt.direction == 'AtoB'
-        self.real_A = input['A' if AtoB else 'B'].to(self.device).half()
-        self.real_B = input['B' if AtoB else 'A'].to(self.device).half()
+        self.real_A = input['A' if AtoB else 'B'].to(self.device)
+        self.real_B = input['B' if AtoB else 'A'].to(self.device)
+        if self.opt.half:
+            self.real_A = input['A' if AtoB else 'B'].to(self.device).half()
+            self.real_B = input['B' if AtoB else 'A'].to(self.device).half()
         self.image_paths = input['A_paths' if AtoB else 'B_paths']
 
     def forward(self):
