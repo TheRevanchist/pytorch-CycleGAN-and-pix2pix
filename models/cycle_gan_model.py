@@ -4,6 +4,7 @@ from util.image_pool import ImagePool
 from .base_model import BaseModel
 from . import networks
 from apex.fp16_utils import FP16_Optimizer
+from torch.utils.checkpoint import checkpoint
 
 
 class CycleGANModel(BaseModel):
@@ -81,10 +82,13 @@ class CycleGANModel(BaseModel):
 
     def forward(self):
         self.fake_B = self.netG_A(self.real_A)
-        self.rec_A = self.netG_B(self.fake_B)
-
         self.fake_A = self.netG_B(self.real_B)
-        self.rec_B = self.netG_A(self.fake_A)
+        if not self.opt.checkpoint: 
+            self.rec_A = self.netG_B(self.fake_B)
+            self.rec_B = self.netG_A(self.fake_A)
+        else:
+            self.rec_A = checkpoint(self.netG_B, self.fake_B)
+            self.rec_B = checkpoint(self.netG_A, self.fake_A)
 
     def backward_D_basic(self, netD, real, fake):
         # Real

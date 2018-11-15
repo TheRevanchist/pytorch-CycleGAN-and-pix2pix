@@ -4,6 +4,7 @@ from torch.nn import init
 import functools
 from torch.optim import lr_scheduler
 from models.scheduler import LambdaLR
+from torch.utils.checkpoint import checkpoint
 ###############################################################################
 # Helper Functions
 ###############################################################################
@@ -184,6 +185,7 @@ class ResnetGenerator(nn.Module):
         self.model = nn.Sequential(*model)
 
     def forward(self, input):
+        #return checkpoint(self.model, input)
         return self.model(input)
 
 
