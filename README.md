@@ -11,7 +11,7 @@ The main difference is that the original code doesn't work well with datasets co
 In order to deal with this, we are going to implement the following techniques:
 
 1) implement half precision weights - it needs NVIDIA apex library (update 12/11/2018, code completed, testing it)
-2) implement gradient checkpointing
+2) implement gradient checkpointing (done)
 3) implement model parallelism
 
 The same license applies as in the original code.
